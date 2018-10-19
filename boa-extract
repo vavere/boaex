@@ -1,0 +1,76 @@
+#!/usr/bin/env python
+"""SAP BusinessObject audit log extractor
+
+Usage:
+    boa-extract
+    boa-extract [--uid=USERID --pwd=PASSWORD --host=HOST --dbn=DATABASE --loop=LOOP --log=LEVLE]
+    boa-extract [-u USERID -p PASSWORD -h HOST -d DATABASE -l LOOP]
+    boa-extract --help
+    boa-extract --version
+
+Options:
+    -u USERID --uid=USERID  User name [default: dba].
+    -p PASSWORD --pwd=PASSWORD  Password [default: ].
+    -h HOST --host=HOST  Server host name [default: localhost].
+    -d DATABASE --dbn=DATABASE  Database name [default: BI4_Audit].
+    -l LOOP --loop=LOOP  Looping interval in seconds, max 3600 [default: 0].
+    --log=LEVEL  Log level DEBUG, INFO, WARNING, ERROR [default: WARNING].
+    --help  Show this screen.
+    --version  Show version.
+"""
+import sys
+import time
+import signal
+import logging
+import sqlanydb
+from docopt import docopt
+
+def action():
+    try:
+        logging.info('Begin action')
+        conn = sqlanydb.connect(uid=arguments['--uid'], pwd=arguments['--pwd'], host=arguments['--host'], dbn=arguments['--dbn'])
+        curs = conn.cursor()
+        curs.execute('select TOP 10 Event_ID, Start_Time, User_Name, Object_Name from dba.ADS_EVENT order by Event_ID desc')
+        desc = curs.description
+        print('-------------------------------------------------------------')
+        print(desc)
+        while True:
+            row = curs.fetchone()
+            if row == None:
+                break
+            for col in range(len(desc)):
+                print ('%s=%s' % (desc[col][0], row[col] ))
+            print('')
+        curs.close()
+        conn.close()
+    except Exception as e:
+        logging.error(e)
+
+loop_forever = True
+
+def handler(signum, frame):
+    logging.warn('Stop signal handled!')
+    global loop_forever
+    loop_forever = False
+
+signal.signal(signal.SIGINT, handler)
+signal.signal(signal.SIGTERM, handler)
+
+if __name__ == '__main__':
+    arguments = docopt(__doc__, version='v1.0')
+    logging.basicConfig(format='%(levelname)s:%(message)s', level=arguments['--log'].upper())
+    logging.info('Initilize...')
+    logging.debug(arguments)
+    while loop_forever:
+        action()
+        loop = int(arguments['--loop'])
+        if not loop > 0: break
+        for i in range(loop):
+            time.sleep(1)
+            if not loop_forever: break
+    logging.info('Exit')
+
+# logger.debug('debug message')
+# logger.info('info message')
+# logger.warn('warn message')
+# logger.error('error message')

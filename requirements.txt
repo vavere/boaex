@@ -1,0 +1,2 @@
+sqlanydb~=1.0.10
+docopt~=0.6.2
