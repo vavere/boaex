@@ -23,44 +23,107 @@ import time
 import signal
 import logging
 import sqlanydb
+from pathlib import Path
 from docopt import docopt
+
+loop_forever = True
+arguments = []
+
+def get_lastpath(): # pieņemu ka /var/lib eksistē
+    logging.debug('get_lastpath()')
+    boaPath = Path('/var/lib/boa-extract')
+    if not boaPath.exists():
+        boaPath.mkdir()
+    return boaPath.joinpath('last')
+
+def get_lastid():
+    logging.debug('get_lastid()')
+    lastFile = get_lastpath()
+    lastId = None
+    if lastFile.exists():
+        lastId = lastFile.read_text()
+    return lastId
+
+def set_lastid(id):
+    logging.debug('set_lastid(%s)' % id)
+    lastFile = get_lastpath()
+    lastFile.write_text(id)
+
+def get_conn():
+    logging.debug('get_conn()')
+    return sqlanydb.connect(uid=arguments['--uid'], pwd=arguments['--pwd'], host=arguments['--host'], dbn=arguments['--dbn'])
+
+def get_curs(conn, query, params=[]):
+    logging.debug('get_curs(%s, %s)' % (query, str(params)))
+    curs = conn.cursor()
+    curs.execute(query, params)
+    return curs
+
+def query_lastid(conn):
+    logging.debug('query_lastid()')
+    curs = get_curs(conn, 'select TOP 1 Event_ID from dba.ADS_EVENT order by Event_ID desc')
+    row = curs.fetchone()
+    if row is not None:
+        lastid = row[0]
+    curs.close()
+    return lastid
 
 def action():
     try:
-        logging.info('Begin action')
-        conn = sqlanydb.connect(uid=arguments['--uid'], pwd=arguments['--pwd'], host=arguments['--host'], dbn=arguments['--dbn'])
-        curs = conn.cursor()
-        curs.execute('select TOP 10 Event_ID, Start_Time, User_Name, Object_Name from dba.ADS_EVENT order by Event_ID desc')
+        logging.debug('action()')
+
+        conn = get_conn()
+
+        lastId = get_lastid()
+        if lastId is not None:
+            logging.debug('last from file %s' % lastId)
+        else:
+            logging.warning('Last file is empty')
+            lastId = query_lastid(conn)
+            logging.debug('last from table: %s' % lastId)
+            if lastId is None:
+                logging.warning('Event table is empty')
+                return
+            set_lastid(lastId)
+
+        logging.debug('execute query')
+        curs = get_curs(conn, 'select TOP 10 Event_ID, Start_Time, User_Name, Object_Name from dba.ADS_EVENT where Event_ID > ? order by Event_ID', [lastId])
+
         desc = curs.description
-        print('-------------------------------------------------------------')
-        print(desc)
+        firstId = lastId
+        count = 0
         while True:
+            logging.debug('fetch one')
             row = curs.fetchone()
             if row == None:
                 break
+            count = count + 1
             for col in range(len(desc)):
                 print ('%s=%s' % (desc[col][0], row[col] ))
             print('')
+            lastId = row[0] # Event_ID
+        logging.debug('clean up')
         curs.close()
         conn.close()
+        if count > 0:
+            logging.info('%s events exported' % count)
+        else:
+            logging.debug('no records')
+        if lastId is not firstId and lastId is not None:
+            set_lastid(lastId)
     except Exception as e:
         logging.error(e)
 
-loop_forever = True
-
 def handler(signum, frame):
-    logging.warn('Stop signal handled!')
     global loop_forever
     loop_forever = False
+    logging.info('Received %s' % signal.Signals(signum).name)
 
 signal.signal(signal.SIGINT, handler)
 signal.signal(signal.SIGTERM, handler)
 
-if __name__ == '__main__':
-    arguments = docopt(__doc__, version='v1.0')
-    logging.basicConfig(format='%(levelname)s:%(message)s', level=arguments['--log'].upper())
-    logging.info('Initilize...')
-    logging.debug(arguments)
+def main():
+    logging.info('Init')
     while loop_forever:
         action()
         loop = int(arguments['--loop'])
@@ -69,6 +132,12 @@ if __name__ == '__main__':
             time.sleep(1)
             if not loop_forever: break
     logging.info('Exit')
+
+if __name__ == '__main__':
+    arguments = docopt(__doc__, version='v1.0')
+    logging.basicConfig(format='BOA: [%(levelname)s] %(message)s', level=arguments['--log'].upper())
+    logging.debug(arguments)
+    main()
 
 # logger.debug('debug message')
 # logger.info('info message')
