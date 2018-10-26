@@ -17,7 +17,13 @@ Options:
     --log=LEVEL  Log level DEBUG, INFO, WARNING, ERROR [default: WARNING].
     --help  Show this screen.
     --version  Show version.
+
+Alternatively, you can specify the same options in the environment variables
+BOAEX_USERID, BOAEX_PASSWORD, BOAEX_HOST, BOAEX_DATABASE, BOAEX_LOOP, BOAEX_LEVEL
+Recommended for daemon password handling
+
 """
+import os
 import re
 import sys
 import time
@@ -30,6 +36,10 @@ from docopt import docopt
 
 loop_forever = True
 arguments = []
+
+def handle_environ(name, option):
+    if os.environ.get(name) is not None:
+        arguments[option] = os.environ.get(name)
 
 def get_lastpath(): # pieņemu ka /var/lib eksistē
     logging.debug('get_lastpath()')
@@ -207,6 +217,16 @@ def main():
 
 if __name__ == '__main__':
     arguments = docopt(__doc__, version='v1.0')
+    # environment
+    handle_environ('BOAEX_USERID', '--uid')
+    handle_environ('BOAEX_PASSWORD', '--pwd')
+    handle_environ('BOAEX_HOST', '--host')
+    handle_environ('BOAEX_DATABASE', '--dbn')
+    handle_environ('BOAEX_LOOP', '--loop')
+    handle_environ('BOAEXBOAEX_LEVEL', '--log')
+    # init log
     logging.basicConfig(format='BOA: [%(levelname)s] %(message)s', level=arguments['--log'].upper())
-    logging.debug(arguments)
+    log_args = arguments.copy()
+    log_args['--pwd'] = '********'
+    logging.debug(log_args)
     main()
