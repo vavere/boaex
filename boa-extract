@@ -87,9 +87,10 @@ def action():
             set_lastid(lastId)
 
         logging.debug('execute query')
-        curs = get_curs(conn, 'select TOP 10 Event_ID, Start_Time, User_Name, Object_Name from dba.ADS_EVENT where Start_Time > ? order by Event_ID', [lastId])
+        curs = get_curs(conn, 'select TOP 10 * from dba.ADS_EVENT where Start_Time > ? order by Start_Time', [lastId]) #Event_ID, Start_Time, User_Name, Object_Name
 
         desc = curs.description
+
         firstId = lastId
         count = 0
         while True:
@@ -98,10 +99,12 @@ def action():
             if row == None:
                 break
             count = count + 1
+
             for col in range(len(desc)):
                 print ('%s=%s' % (desc[col][0], row[col] ))
-            print('')
-            lastId = row[1] # Start_Time
+                if desc[col][0] == 'Start_Time':
+                    lastId = row[col]
+
         logging.debug('clean up')
         curs.close()
         conn.close()
