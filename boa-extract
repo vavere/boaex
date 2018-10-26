@@ -61,7 +61,7 @@ def get_curs(conn, query, params=[]):
 
 def query_lastid(conn):
     logging.debug('query_lastid()')
-    curs = get_curs(conn, 'select TOP 1 Event_ID from dba.ADS_EVENT order by Event_ID desc')
+    curs = get_curs(conn, 'select TOP 1 Start_Time from dba.ADS_EVENT order by Start_Time desc')
     row = curs.fetchone()
     if row is not None:
         lastid = row[0]
@@ -87,7 +87,7 @@ def action():
             set_lastid(lastId)
 
         logging.debug('execute query')
-        curs = get_curs(conn, 'select TOP 10 Event_ID, Start_Time, User_Name, Object_Name from dba.ADS_EVENT where Event_ID > ? order by Event_ID', [lastId])
+        curs = get_curs(conn, 'select TOP 10 Event_ID, Start_Time, User_Name, Object_Name from dba.ADS_EVENT where Start_Time > ? order by Event_ID', [lastId])
 
         desc = curs.description
         firstId = lastId
@@ -101,7 +101,7 @@ def action():
             for col in range(len(desc)):
                 print ('%s=%s' % (desc[col][0], row[col] ))
             print('')
-            lastId = row[0] # Event_ID
+            lastId = row[1] # Start_Time
         logging.debug('clean up')
         curs.close()
         conn.close()
