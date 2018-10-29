@@ -2,11 +2,11 @@
 """SAP BusinessObject audit log extractor
 
 Usage:
-    boa-extract
-    boa-extract [--uid=USERID --pwd=PASSWORD --host=HOST --dbn=DATABASE --loop=LOOP --log=LEVLE]
-    boa-extract [-u USERID -p PASSWORD -h HOST -d DATABASE -l LOOP]
-    boa-extract --help
-    boa-extract --version
+    boaex
+    boaex [--uid=USERID --pwd=PASSWORD --host=HOST --dbn=DATABASE --loop=LOOP --log=LEVEL]
+    boaex [-u USERID -p PASSWORD -h HOST -d DATABASE -l LOOP]
+    boaex --help
+    boaex --version
 
 Options:
     -u USERID --uid=USERID  User name [default: dba].
@@ -27,7 +27,6 @@ import os
 import re
 import sys
 import time
-import prctl
 import signal
 import logging
 import json
@@ -217,9 +216,8 @@ def main():
     logging.info('Exit')
 
 if __name__ == '__main__':
-    prctl.set_name(sys.argv[0])
     # arguments
-    arguments = docopt(__doc__, version='v1.0')
+    arguments = docopt(__doc__, version='v1.0', help=True)
     # environment
     handle_environ('BOAEX_USERID', '--uid')
     handle_environ('BOAEX_PASSWORD', '--pwd')
