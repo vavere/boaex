@@ -217,7 +217,7 @@ def main():
 
 if __name__ == '__main__':
     # arguments
-    arguments = docopt(__doc__, version='v1.0', help=True)
+    arguments = docopt(__doc__, version='v1.0', )
     # environment
     handle_environ('BOAEX_USERID', '--uid')
     handle_environ('BOAEX_PASSWORD', '--pwd')
