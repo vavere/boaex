@@ -226,7 +226,7 @@ if __name__ == '__main__':
     handle_environ('BOAEX_LOOP', '--loop')
     handle_environ('BOAEXBOAEX_LEVEL', '--log')
     # init log
-    logging.basicConfig(format='BOA: [%(levelname)s] %(message)s', level=arguments['--log'].upper())
+    logging.basicConfig(format='boaex: [%(levelname)s] %(message)s', level=arguments['--log'].upper())
     # debug options
     log_args = arguments.copy()
     log_args['--pwd'] = '*' * len(log_args['--pwd'])
