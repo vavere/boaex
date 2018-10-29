@@ -27,6 +27,7 @@ import os
 import re
 import sys
 import time
+import prctl
 import signal
 import logging
 import json
@@ -216,6 +217,8 @@ def main():
     logging.info('Exit')
 
 if __name__ == '__main__':
+    prctl.set_name(sys.argv[0])
+    # arguments
     arguments = docopt(__doc__, version='v1.0')
     # environment
     handle_environ('BOAEX_USERID', '--uid')
