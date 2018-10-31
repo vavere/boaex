@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """SAP BusinessObject audit log extractor
 
 Usage:
@@ -37,13 +38,18 @@ from docopt import docopt
 loop_forever = True
 arguments = []
 
+TRACE_LEVEL_NUM = 5
+logging.addLevelName(TRACE_LEVEL_NUM, 'TRACE')
+def trace(message):
+    logging.log(TRACE_LEVEL_NUM, message)
+
 def handle_environ(name, option):
     if os.environ.get(name) is not None:
         arguments[option] = os.environ.get(name)
 
 def get_lastpath(): # pieņemu ka /var/lib eksistē
     logging.debug('get_lastpath()')
-    boaPath = Path('/var/lib/boa-extract')
+    boaPath = Path('/var/lib/boaex')
     if not boaPath.exists():
         boaPath.mkdir()
     return boaPath.joinpath('last')
@@ -68,7 +74,7 @@ def set_last(id):
     lastFile.write_text(id)
 
 def execute(conn, query, params=[]):
-    logging.debug('execute(%s, %s)' % (query, str(params)))
+    trace('execute: %s%s' % (query, str(params)))
     curs = conn.cursor()
     curs.execute(query, params)
     return curs
@@ -101,14 +107,17 @@ def get_event_details(conn, eventId):
         curs = execute(conn, details_query, [eventId])
         desc = curs.description
         rows = curs.fetchall()
-        logging.debug('build details values')
+        logging.debug('build details json')
         result = ''
+        names = {}
         for row in rows:
             name = str(row[0]).replace(' ', '_')
             value = str(row[1]).strip().replace('\x00', '')
             matchID = re.search('_ID$', name)
-            if value != '' and matchID is None:
-                if result != "":
+            prevValue = names.get(name)
+            logging.debug('name: %s, value: %s, previous: %s' % (name, value, prevValue))
+            if value != '' and prevValue is None and matchID is None:
+                if result != '':
                     result += ', '
                 result += '"%s": "%s"' % (name, value)
     except Exception as e:
@@ -138,7 +147,7 @@ def process_events(conn):
         logPath = get_logpath()
 
         logging.debug('open events query')
-        events_query = '''select top 100
+        events_query = '''select top 1000
         Event_ID,Start_Time,User_Name,Session_ID,Object_Name,Event_Type_Name,Status_Name,Duration_ms,Action_ID,Sequence_In_Action
         from dba.ADS_EVENT
         inner join dba.ADS_EVENT_TYPE_STR on ADS_EVENT_TYPE_STR.Event_Type_ID = ADS_EVENT.Event_Type_ID
@@ -164,6 +173,7 @@ def process_events(conn):
                 if row[col] != "":
                     if result !="":
                         result += ', '
+                    logging.debug('name: %s, value: %s' % (desc[col][0], row[col]))
                     result += '"%s": "%s"' % (desc[col][0], row[col])
             result += get_event_details(conn, row[0]) # Event_ID
             result = '{%s}\n' % result
