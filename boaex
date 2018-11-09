@@ -39,10 +39,8 @@ from docopt import docopt
 loop_forever = True
 arguments = []
 
-TRACE_LEVEL_NUM = 5
-logging.addLevelName(TRACE_LEVEL_NUM, 'TRACE')
-def trace(message):
-    logging.log(TRACE_LEVEL_NUM, message)
+TRACE = 5
+logging.addLevelName(TRACE, 'TRACE')
 
 def handle_environ(name, option):
     if os.environ.get(name) is not None:
@@ -75,7 +73,7 @@ def set_last(id):
     lastFile.write_text(id)
 
 def execute(conn, query, params=[]):
-    trace('execute: %s%s' % (query, str(params)))
+    logging.log(TRACE, 'execute: %s%s' % (query, str(params)))
     curs = conn.cursor()
     curs.execute(query, params)
     return curs
