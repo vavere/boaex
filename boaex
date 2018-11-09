@@ -188,7 +188,6 @@ def process_events(conn):
                 set_last(lastId) # Start_Time
 
             count = count + batchCount
-            logging.debug('check if there is any events yet')
             if batchCount < int(arguments['--batch']):  # vēl ir palikuši ieraksti
                 break
 
