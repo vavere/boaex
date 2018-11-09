@@ -50,7 +50,7 @@ def get_lastpath(): # pieņemu ka /var/lib eksistē
     logging.debug('get_lastpath()')
     boaPath = Path('/var/lib/boaex')
     if not boaPath.exists():
-        boaPath.mkdir()
+        boaPath.mkdir(parents=True, exist_ok=True)
     return boaPath.joinpath('last')
 
 def get_logpath(): # pieņemu ka /var/log eksistē
@@ -145,44 +145,51 @@ def process_events(conn):
             set_last(lastId)
 
         logPath = get_logpath()
-
-        logging.debug('open events query')
-        events_query = '''select top ?
-        Event_ID,Start_Time,User_Name,Session_ID,Object_Name,Event_Type_Name,Status_Name,Duration_ms,Action_ID,Sequence_In_Action
-        from dba.ADS_EVENT
-        inner join dba.ADS_EVENT_TYPE_STR on ADS_EVENT_TYPE_STR.Event_Type_ID = ADS_EVENT.Event_Type_ID
-        inner join dba.ADS_STATUS_STR on ADS_STATUS_STR.Status_ID = ADS_EVENT.Status_ID
-        where Start_Time > ?
-        and ADS_EVENT_TYPE_STR.Language = 'EN'
-        and ADS_STATUS_STR.Language = 'EN'
-        order by Start_Time
-        '''
-        curs = execute(conn, events_query, [arguments['--batch'], lastId])
-        desc = curs.description
         count = 0
         while loop_forever:
-            logging.debug('fetch next')
-            row = curs.fetchone()
-            if row == None:
+            logging.debug('open events query')
+
+            events_query = '''select top ?
+            Event_ID,Start_Time,User_Name,Session_ID,Object_Name,Event_Type_Name,Status_Name,Duration_ms,Action_ID,Sequence_In_Action
+            from dba.ADS_EVENT
+            inner join dba.ADS_EVENT_TYPE_STR on ADS_EVENT_TYPE_STR.Event_Type_ID = ADS_EVENT.Event_Type_ID
+            inner join dba.ADS_STATUS_STR on ADS_STATUS_STR.Status_ID = ADS_EVENT.Status_ID
+            where Start_Time > ?
+            and ADS_EVENT_TYPE_STR.Language = 'EN'
+            and ADS_STATUS_STR.Language = 'EN'
+            order by Start_Time
+            '''
+            curs = execute(conn, events_query, [arguments['--batch'], lastId])
+            desc = curs.description
+            batchCount = 0
+            while loop_forever:
+                logging.debug('fetch next')
+                row = curs.fetchone()
+                if row == None:
+                    break
+                batchCount = batchCount + 1
+
+                logging.debug('build event json')
+                result = ""
+                for col in range(len(desc)):
+                    if row[col] != "":
+                        if result !="":
+                            result += ', '
+                        logging.debug('name: %s, value: %s' % (desc[col][0], row[col]))
+                        result += '"%s": "%s"' % (desc[col][0], row[col])
+                result += get_event_details(conn, row[0]) # Event_ID
+                result = '{%s}\n' % result
+
+                logging.debug('append to log')
+                with logPath.open('a', encoding ='utf-8') as file:
+                    file.write(result)
+                logging.debug('save last')
+                lastId = row[1]
+                set_last(lastId) # Start_Time
+
+            count = count + batchCount
+            if batchCount < int(arguments['--batch']):  # vēl ir palikuši ieraksti
                 break
-            count = count + 1
-
-            logging.debug('build event json')
-            result = ""
-            for col in range(len(desc)):
-                if row[col] != "":
-                    if result !="":
-                        result += ', '
-                    logging.debug('name: %s, value: %s' % (desc[col][0], row[col]))
-                    result += '"%s": "%s"' % (desc[col][0], row[col])
-            result += get_event_details(conn, row[0]) # Event_ID
-            result = '{%s}\n' % result
-
-            logging.debug('append to log')
-            with logPath.open('a', encoding ='utf-8') as file:
-                file.write(result)
-            logging.debug('save last')
-            set_last(row[1]) # Start_Time
 
         if count > 0:
             logging.info('%s events exported' % count)
