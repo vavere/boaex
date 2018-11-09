@@ -4,7 +4,7 @@
 
 Usage:
     boaex
-    boaex [--uid=USERID --pwd=PASSWORD --host=HOST --dbn=DATABASE --loop=LOOP --log=LEVEL]
+    boaex [--uid=USERID --pwd=PASSWORD --host=HOST --dbn=DATABASE --loop=LOOP --batch=BATCH --log=LEVEL]
     boaex [-u USERID -p PASSWORD -h HOST -d DATABASE -l LOOP]
     boaex --help
     boaex --version
@@ -15,6 +15,7 @@ Options:
     -h HOST --host=HOST  Server host name [default: localhost].
     -d DATABASE --dbn=DATABASE  Database name [default: BI4_Audit].
     -l LOOP --loop=LOOP  Looping interval in seconds, max 3600 [default: 0].
+    --batch=BATCH  Batch record count, [default: 100].
     --log=LEVEL  Log level DEBUG, INFO, WARNING, ERROR [default: WARNING].
     --help  Show this screen.
     --version  Show version.
@@ -115,6 +116,7 @@ def get_event_details(conn, eventId):
             value = str(row[1]).strip().replace('\x00', '')
             matchID = re.search('_ID$', name)
             prevValue = names.get(name)
+            names[name] = value
             logging.debug('name: %s, value: %s, previous: %s' % (name, value, prevValue))
             if value != '' and prevValue is None and matchID is None:
                 if result != '':
@@ -147,7 +149,7 @@ def process_events(conn):
         logPath = get_logpath()
 
         logging.debug('open events query')
-        events_query = '''select top 1000
+        events_query = '''select top ?
         Event_ID,Start_Time,User_Name,Session_ID,Object_Name,Event_Type_Name,Status_Name,Duration_ms,Action_ID,Sequence_In_Action
         from dba.ADS_EVENT
         inner join dba.ADS_EVENT_TYPE_STR on ADS_EVENT_TYPE_STR.Event_Type_ID = ADS_EVENT.Event_Type_ID
@@ -157,7 +159,7 @@ def process_events(conn):
         and ADS_STATUS_STR.Language = 'EN'
         order by Start_Time
         '''
-        curs = execute(conn, events_query, [lastId])
+        curs = execute(conn, events_query, [arguments['--batch'], lastId])
         desc = curs.description
         count = 0
         while loop_forever:
