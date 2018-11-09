@@ -147,7 +147,7 @@ def process_events(conn):
         logPath = get_logpath()
         count = 0
         while loop_forever:
-            logging.debug('open events query')
+            logging.debug('open events query, limit batch')
 
             events_query = '''select top ?
             Event_ID,Start_Time,User_Name,Session_ID,Object_Name,Event_Type_Name,Status_Name,Duration_ms,Action_ID,Sequence_In_Action
@@ -163,7 +163,7 @@ def process_events(conn):
             desc = curs.description
             batchCount = 0
             while loop_forever:
-                logging.debug('fetch next')
+                logging.debug('fetch next event')
                 row = curs.fetchone()
                 if row == None:
                     break
@@ -188,6 +188,7 @@ def process_events(conn):
                 set_last(lastId) # Start_Time
 
             count = count + batchCount
+            logging.debug('check if there is any events yet')
             if batchCount < int(arguments['--batch']):  # vēl ir palikuši ieraksti
                 break
 
