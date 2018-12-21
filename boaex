@@ -147,7 +147,7 @@ def process_events(conn):
         logPath = get_logpath()
         count = 0
         while loop_forever:
-            logging.debug('open events query, limit batch')
+            logging.debug('open events query')
 
             events_query = '''select top ?
             Event_ID,Start_Time,User_Name,Session_ID,Object_Name,Event_Type_Name,Status_Name,Duration_ms,Action_ID,Sequence_In_Action
