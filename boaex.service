@@ -1,0 +1,22 @@
+[Unit]
+Description=BusinessObject audit log extractor
+After=multi-user.target
+
+[Service]
+Type=simple
+User=boaex
+Group=boaex
+Environment=BOAEX_USERID=<user>
+Environment=BOAEX_PASSWORD=<pass>
+Environment=BOAEX_HOST=<host>
+Environment=BOAEX_DATABASE=<dbname>
+Environment=BOAEX_LOOP=300
+Environment=BOAEX_LEVEL=INFO
+ExecStart=/usr/bin/python /usr/local/bin/boaex
+StandardOutput=syslog
+StandardError=syslog
+Restart=on-failure
+RestartSec=300
+
+[Install]
+WantedBy=multi-user.target
